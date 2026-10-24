@@ -1,0 +1,120 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '6.0.54'
+}
+version = mod_version
+group = mod_group_id
+base { archivesName = "${mod_id}-${minecraft_version}" }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+sourceSets {
+    gameTest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+configurations {
+    gameTestImplementation.extendsFrom implementation
+    gameTestCompileOnly.extendsFrom compileOnly
+    gameTestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+def proof = project.findProperty('proof')
+def control = project.hasProperty('control')
+minecraft {
+    mappings channel: mapping_channel, version: mapping_version
+    copyIdeResources = true
+    runs {
+        configureEach {
+            workingDirectory project.file(proof ? "run/${proof}" : 'run')
+            property 'forge.logging.console.level', 'info'
+            if (!control && file('src/main/resources/flatworldfix.mixins.json').exists()) {
+                arg '-mixin.config=flatworldfix.mixins.json'
+                property 'mixin.env.remapRefMap', 'true'
+                property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            }
+            mods {
+                flatworldfix {
+                    source sourceSets.main
+                    if (proof) source sourceSets.gameTest
+                }
+            }
+        }
+        server {
+            args '--nogui'
+            if (proof) property 'flatworldfix.proof', proof.toString()
+        }
+    }
+}
+repositories { mavenCentral() }
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.5'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+test { useJUnitPlatform() }
+
+tasks.named('compileJava', JavaCompile).configure {
+    dependsOn 'createMcpToSrg'
+    // The locally cached Mixin jar is unshaded; its processor uses Forge's ASM/Guava/Gson.
+    options.annotationProcessorPath = configurations.annotationProcessor + sourceSets.main.compileClasspath
+    options.compilerArgs += [
+        "-AreobfSrgFile=${projectDir}/build/createMcpToSrg/output.srg",
+        "-AoutRefMapFile=${projectDir}/build/classes/java/main/flatworldfix.refmap.json"
+    ]
+}
+tasks.named('processResources', ProcessResources).configure {
+    def replacements = [minecraft_version_range: minecraft_version_range,
+        forge_version_range: forge_version_range, loader_version_range: loader_version_range,
+        mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
+        mod_authors: mod_authors, mod_description: mod_description]
+    inputs.properties replacements
+    filesMatching(['META-INF/mods.toml']) { expand replacements }
+}
+tasks.named('jar', Jar).configure {
+    from('LICENSE') { into 'META-INF' }
+    manifest { attributes('MixinConfigs': 'flatworldfix.mixins.json',
+        'Implementation-Version': project.version) }
+    finalizedBy 'reobfJar'
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+
+// Named, bounded dedicated-server proof. Local jars only; never part of the release artifact.
+if (proof) {
+    tasks.register('prepareProof') {
+        doLast {
+            if (!(proof.toString() ==~ /[a-z][a-z0-9-]*/)) throw new GradleException('Invalid proof name')
+            def dir = file("run/${proof}")
+            dir.mkdirs()
+            def terralith = file(project.property('terralithJar'))
+            if (!terralith.isFile()) throw new GradleException("Missing local Terralith jar: ${terralith}")
+            copy { from terralith; into new File(dir, 'mods') }
+            new File(dir, 'config').mkdirs()
+            new File(dir, 'config/fml.toml').text = 'versionCheck=false\n'
+            new File(dir, 'eula.txt').text = 'eula=true\n'
+            def type = project.findProperty('worldType') ?: 'flat'
+            new File(dir, 'server.properties').text = """level-name=world
+level-type=${type}
+level-seed=0
+online-mode=false
+server-ip=127.0.0.1
+server-port=0
+enable-query=false
+enable-rcon=false
+generate-structures=false
+spawn-animals=false
+spawn-monsters=false
+spawn-npcs=false
+view-distance=2
+simulation-distance=2
+sync-chunk-writes=false
+max-tick-time=120000
+generator-settings={"biome":"minecraft:plains","layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},{"block":"minecraft:grass_block","height":1}],"lakes":false,"features":false,"structure_overrides":[]}
+"""
+        }
+    }
+    // ForgeGradle creates its run tasks after project evaluation.
+    tasks.configureEach { if (name == 'runServer') dependsOn 'prepareProof' }
+}
