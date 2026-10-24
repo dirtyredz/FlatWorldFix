@@ -1,5 +1,11 @@
-param([string]$Jar = 'build/libs/flatworldfix-1.20.1-1.0.0.jar')
+param([string]$Jar)
 $ErrorActionPreference = 'Stop'
+$repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$modProperties = ConvertFrom-StringData (Get-Content -Raw -LiteralPath (Join-Path $repo 'gradle.properties'))
+if (!$Jar) {
+    $Jar = Join-Path $repo "build/libs/$($modProperties.mod_id)-$($modProperties.minecraft_version)-$($modProperties.mod_version).jar"
+}
+$expectedVersion = 'version="' + $modProperties.mod_version + '"'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $Jar))
 try {
@@ -15,7 +21,7 @@ try {
         'flatworldfix.mixins.json', 'flatworldfix.refmap.json')) {
         $reader = [IO.StreamReader]::new($archive.GetEntry($name).Open())
         try { $content = $reader.ReadToEnd() } finally { $reader.Dispose() }
-        if ($name -eq 'META-INF/mods.toml' -and ($content.Contains('${') -or !$content.Contains('version="1.0.0"'))) {
+        if ($name -eq 'META-INF/mods.toml' -and ($content.Contains('${') -or !$content.Contains($expectedVersion))) {
             throw 'Unexpanded or wrong mod metadata'
         }
         if ($name -eq 'META-INF/MANIFEST.MF' -and !$content.Contains('MixinConfigs: flatworldfix.mixins.json')) {

@@ -25,13 +25,13 @@ import java.util.Properties;
 /** Small real-registry regression matrix, executed inside the named dedicated-server proof. */
 final class MergeProof {
     private static final ResourceKey<LevelStem> EXTRA = ResourceKey.create(
-            Registries.LEVEL_STEM, new ResourceLocation("flatworldfix", "proof_extra"));
+            Registries.LEVEL_STEM, ResourceLocation.fromNamespaceAndPath("flatworldfix", "proof_extra"));
 
     static void run(MinecraftServer server) throws IOException {
         var access = server.registryAccess();
         LevelStem terralith;
         try (var reader = server.getResourceManager().openAsReader(
-                new ResourceLocation("minecraft", "dimension/overworld.json"))) {
+                ResourceLocation.fromNamespaceAndPath("minecraft", "dimension/overworld.json"))) {
             terralith = LevelStem.CODEC.parse(RegistryOps.create(JsonOps.INSTANCE, access),
                     JsonParser.parseReader(reader)).getOrThrow(false, MergeProof::fail);
         }

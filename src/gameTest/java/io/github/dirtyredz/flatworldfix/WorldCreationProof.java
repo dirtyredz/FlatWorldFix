@@ -13,7 +13,7 @@ public final class WorldCreationProof {
         try {
             System.out.println("FLATWORLDFIX_PROOF generator="
                     + event.getServer().overworld().getChunkSource().getGenerator().getClass().getName());
-            if (!System.getProperty("flatworldfix.proof").startsWith("control")) {
+            if (!Boolean.getBoolean("flatworldfix.control")) {
                 MergeProof.run(event.getServer());
             }
             java.nio.file.Files.writeString(java.nio.file.Path.of("proof-result.txt"), "PASS\n");

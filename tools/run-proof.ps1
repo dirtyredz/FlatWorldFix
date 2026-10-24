@@ -19,6 +19,10 @@ do {
     Write-Output "Waiting for machine slot: Java PIDs $($busy.ProcessId -join ', ')"
     Start-Sleep -Seconds 60
 } while ($true)
+if ([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() |
+        Where-Object Port -eq 9) {
+    throw 'Local port 9 is occupied; cannot use it as the disconnected proof HTTP proxy'
+}
 
 $process = [Diagnostics.Process]::GetCurrentProcess()
 $oldPriority = $process.PriorityClass

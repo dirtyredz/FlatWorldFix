@@ -43,7 +43,15 @@ minecraft {
         }
         server {
             args '--nogui'
-            if (proof) property 'flatworldfix.proof', proof.toString()
+            if (proof) {
+                property 'flatworldfix.proof', proof.toString()
+                property 'flatworldfix.control', control.toString()
+                // Keep runtime HTTP (including authlib metadata refreshes) off the internet too.
+                property 'http.proxyHost', '127.0.0.1'
+                property 'http.proxyPort', '9'
+                property 'https.proxyHost', '127.0.0.1'
+                property 'https.proxyPort', '9'
+            }
         }
     }
 }
@@ -56,12 +64,23 @@ dependencies {
 }
 test { useJUnitPlatform() }
 
-tasks.named('compileJava', JavaCompile).configure {
+tasks.register('createMixinMappings') {
     dependsOn 'createMcpToSrg'
+    inputs.file layout.buildDirectory.file('createMcpToSrg/output.tsrg')
+    outputs.file layout.buildDirectory.file('mixin/mcp-to-srg.srg')
+    doLast {
+        def output = file('build/mixin/mcp-to-srg.srg')
+        output.parentFile.mkdirs()
+        net.minecraftforge.srgutils.IMappingFile.load(file('build/createMcpToSrg/output.tsrg'))
+                .write(output.toPath(), net.minecraftforge.srgutils.IMappingFile.Format.SRG, false)
+    }
+}
+tasks.named('compileJava', JavaCompile).configure {
+    dependsOn 'createMixinMappings'
     // The locally cached Mixin jar is unshaded; its processor uses Forge's ASM/Guava/Gson.
     options.annotationProcessorPath = configurations.annotationProcessor + sourceSets.main.compileClasspath
     options.compilerArgs += [
-        "-AreobfSrgFile=${projectDir}/build/createMcpToSrg/output.srg",
+        "-AreobfSrgFile=${projectDir}/build/mixin/mcp-to-srg.srg",
         "-AoutRefMapFile=${projectDir}/build/classes/java/main/flatworldfix.refmap.json"
     ]
 }
