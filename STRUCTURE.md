@@ -8,7 +8,7 @@
 - `src/main/resources/` — Forge metadata, mixin config, pack metadata.
 - `src/gameTest/` — dedicated-server proof and real registry/codec checks; never packaged.
 - `src/test/` — pure unit tests.
-- `tools/` — read-only saved-world verification.
+- `tools/` — isolated proof launcher and artifact/saved-world verification.
 - `docs/` — decisions, gotchas, verification recipe and results.
 - `gradle/`, `gradlew*`, `.gitattributes`, `.gitignore` — workspace canonical shared files.
 - `build/`, `run/` — ignored build output and isolated proof saves/logs.

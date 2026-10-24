@@ -68,3 +68,18 @@ See [GOTCHAS.md](GOTCHAS.md) for late task registration and TSRG2-to-SRG convers
 The first control also fetched Forge version metadata despite Gradle offline mode; later runs
 disable that check, and the proof launcher now blocks runtime HTTP via a disconnected local proxy.
 No dependency download or installation was performed. Client UI checks are not run (headless only).
+
+One fast-gate attempt was stopped before task execution because another checkout started a
+server after the process check. The interrupted log is build/inspection/fast-gate-interrupted.log.
+
+Final `./gradlew --offline test build`: **BUILD SUCCESSFUL in 4m 1s**; two unit tests,
+zero failures/errors/skips; reobfJar completed. No full suite was run.
+`./tools/verify-jar.ps1` passed: expanded mods.toml, manifest activation, side-specific mixins,
+production SRG refmap, MIT license, and no test classes/dependencies. The archive contains
+exactly five production classes. A javap inspection also confirmed reobfuscated Minecraft
+references in the packaged classes (build/inspection/release-bytecode.txt).
+Release SHA-256: `9234B6621007AC2D369186E8294341C7242AFCAB9E1E58FDE27E075756F1D581`.
+Workspace `tools/sync-mod-files.ps1 -Check`, a separate six-file template hash comparison,
+`git diff --check`, and root `dk check` passed (zero Docket errors/warnings).
+The root item was left unchanged for the orchestrator. All proof servers and build processes
+started here have exited; no instance or pack was modified.
