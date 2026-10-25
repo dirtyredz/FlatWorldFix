@@ -29,13 +29,13 @@ minecraft {
         configureEach {
             workingDirectory project.file(proof ? "run/${proof}" : 'run')
             property 'forge.logging.console.level', 'info'
-            if (!control && file('src/main/resources/flatworldfix.mixins.json').exists()) {
-                arg '-mixin.config=flatworldfix.mixins.json'
+            if (!control && file("src/main/resources/${mod_id}.mixins.json").exists()) {
+                arg "-mixin.config=${mod_id}.mixins.json"
                 property 'mixin.env.remapRefMap', 'true'
                 property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
             }
             mods {
-                flatworldfix {
+                "${mod_id}" {
                     source sourceSets.main
                     if (proof) source sourceSets.gameTest
                 }
@@ -44,8 +44,8 @@ minecraft {
         server {
             args '--nogui'
             if (proof) {
-                property 'flatworldfix.proof', proof.toString()
-                property 'flatworldfix.control', control.toString()
+                property "${mod_id}.proof", proof.toString()
+                property "${mod_id}.control", control.toString()
                 // Keep runtime HTTP (including authlib metadata refreshes) off the internet too.
                 property 'http.proxyHost', '127.0.0.1'
                 property 'http.proxyPort', '9'
@@ -81,7 +81,7 @@ tasks.named('compileJava', JavaCompile).configure {
     options.annotationProcessorPath = configurations.annotationProcessor + sourceSets.main.compileClasspath
     options.compilerArgs += [
         "-AreobfSrgFile=${projectDir}/build/mixin/mcp-to-srg.srg",
-        "-AoutRefMapFile=${projectDir}/build/classes/java/main/flatworldfix.refmap.json"
+        "-AoutRefMapFile=${projectDir}/build/classes/java/main/${mod_id}.refmap.json"
     ]
 }
 tasks.named('processResources', ProcessResources).configure {
@@ -94,7 +94,7 @@ tasks.named('processResources', ProcessResources).configure {
 }
 tasks.named('jar', Jar).configure {
     from('LICENSE') { into 'META-INF' }
-    manifest { attributes('MixinConfigs': 'flatworldfix.mixins.json',
+    manifest { attributes('MixinConfigs': "${mod_id}.mixins.json",
         'Implementation-Version': project.version) }
     finalizedBy 'reobfJar'
 }

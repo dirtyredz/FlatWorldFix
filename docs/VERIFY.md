@@ -1,9 +1,9 @@
 # Verification
 
-Fast gate: `./gradlew --offline test build verifyReleaseJar`, then `./tools/verify-jar.ps1`.
-The shared guard stages the exact release jar and `build/ci/release.json`; the manual check
-retains the mod-specific mixin/refmap/license assertions. Hosted CI runs the shared guard;
-there is no custom-check hook in `.ci/mod.json`. Dedicated-server proofs below are not Forge
+Fast gate: `./gradlew --offline test build verifyReleaseJar` with cached dependencies.
+The shared guard stages the exact release jar and `build/ci/release.json`, and enforces the
+required entries, manifest mixin activation and production SRG refmap declared in `.ci/mod.json`.
+Hosted CI runs the same checks. Dedicated-server proofs below are not Forge
 GameTests, so `.ci/mod.json` deliberately sets `gametests: false`.
 
 Named dedicated-server proof (one server at a time, BelowNormal, local dependencies only):
@@ -33,7 +33,7 @@ and a successful external NBT assertion:
 node tools/verify-world.mjs run/fixed-flat/world/level.dat flat
 node tools/verify-world.mjs run/control-flat/world/level.dat noise build/inspection/terralith-overworld.json
 node tools/verify-world.mjs run/fixed-default/world/level.dat noise build/inspection/terralith-overworld.json
-./tools/verify-jar.ps1
+./gradlew --offline verifyReleaseJar
 node tools/compare-worldgen.mjs build/inspection/control-flat-original.dat run/control-flat/world/level.dat
 ```
 
@@ -78,7 +78,7 @@ server after the process check. The interrupted log is build/inspection/fast-gat
 
 Final `./gradlew --offline test build`: **BUILD SUCCESSFUL in 4m 1s**; two unit tests,
 zero failures/errors/skips; reobfJar completed. No full suite was run.
-`./tools/verify-jar.ps1` passed: expanded mods.toml, manifest activation, side-specific mixins,
+The former `./tools/verify-jar.ps1` (now replaced by `verifyReleaseJar`) passed: expanded mods.toml, manifest activation, side-specific mixins,
 production SRG refmap, MIT license, and no test classes/dependencies. The archive contains
 exactly five production classes. A javap inspection also confirmed reobfuscated Minecraft
 references in the packaged classes (build/inspection/release-bytecode.txt).

@@ -7,8 +7,8 @@ owner-authorized release dispatch after green main CI verifies, builds, drafts, 
 and publishes immutable assets. Gradle resolves the exact release manifest beside the staged jar.
 
 Neither datagen nor Forge GameTests are configured. Dedicated-server proofs use runServer with
-a proof property and remain separate qualification. The shared jar guard supplements, rather
-than replaces, tools/verify-jar.ps1 (manual mixin/refmap/license checks).
+a proof property and remain separate qualification. The shared jar guard enforces the mixin/refmap/license checks declared in `.ci/mod.json`,
+replacing the duplicated manual `tools/verify-jar.ps1` check.
 
 ## 2026-10-24 — Explicit creation opt-in, persisted with world generation settings
 

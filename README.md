@@ -37,6 +37,5 @@ Shared files are checked from the workspace with `tools/sync-mod-files.ps1 -Chec
 CI sets `datagen: false` (no generator) and `gametests: false`: the `src/gameTest` source set
 contains dedicated-server proofs launched by `runServer -Pproof=...`, not a Forge GameTest suite.
 The release job therefore skips Forge GameTests. These proofs stay separate; see
-[verification](docs/VERIFY.md). The shared template has no mod-specific jar-check hook:
-run `./tools/verify-jar.ps1` manually after the fast gate to retain the mixin config, SRG
-refmap and license checks in addition to the shared archive guard.
+[verification](docs/VERIFY.md). The shared `verifyReleaseJar` guard also enforces the
+mixin config, manifest activation, SRG refmap and license checks declared in `.ci/mod.json`.

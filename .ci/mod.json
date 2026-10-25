@@ -3,5 +3,22 @@
   "mainPackage": "io.github.dirtyredz.flatworldfix",
   "datagen": false,
   "gametests": false,
-  "packSide": "both"
+  "packSide": "both",
+  "jar": {
+    "requiredEntries": [
+      "META-INF/LICENSE",
+      "META-INF/MANIFEST.MF",
+      "flatworldfix.mixins.json",
+      "flatworldfix.refmap.json"
+    ],
+    "manifestContains": [
+      "MixinConfigs: flatworldfix.mixins.json"
+    ],
+    "entryContains": [
+      {
+        "entry": "flatworldfix.refmap.json",
+        "contains": "m_"
+      }
+    ]
+  }
 }
