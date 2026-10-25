@@ -16,3 +16,27 @@ biomes and noise settings; this mod controls dimension selection, not all world 
 Build: `./gradlew --offline test build` with cached Forge 47.4.10, Gradle 8.13, Java 17.
 Release output: `build/libs/`; the version comes from `gradle.properties`.
 See [verification](docs/VERIFY.md), [design](docs/DECISIONS.md), and [layout](STRUCTURE.md).
+
+## Release
+
+The version lives only in `gradle.properties`. Prepare non-empty `docs/releases/<version>.md`
+for a release, then obtain the owner's go-ahead to push and land on main. Push CI runs
+`./gradlew test build verifyReleaseJar`; it publishes nothing.
+After green main CI and owner authorization, the agent dispatches
+`gh workflow run release.yml --ref main`. The workflow verifies again, builds
+the final jar, creates its version tag, uploads a draft, reads every asset back and compares
+SHA-256 before publishing the jar, its `.sha256` and `flatworldfix.pw.toml`.
+The pack session consumes the published `.pw.toml`; the owner never publishes by hand.
+Versions starting with `0.` or containing `-` are prereleases. Existing releases/tags are
+refused, published bytes are never replaced, and stable latest never moves backward.
+A failed draft requires deliberate recovery before retrying.
+
+Local fast gate: `./gradlew --offline test build verifyReleaseJar` with cached dependencies.
+Shared files are checked from the workspace with `tools/sync-mod-files.ps1 -Check -Mod <this-worktree>`.
+
+CI sets `datagen: false` (no generator) and `gametests: false`: the `src/gameTest` source set
+contains dedicated-server proofs launched by `runServer -Pproof=...`, not a Forge GameTest suite.
+The release job therefore skips Forge GameTests. These proofs stay separate; see
+[verification](docs/VERIFY.md). The shared template has no mod-specific jar-check hook:
+run `./tools/verify-jar.ps1` manually after the fast gate to retain the mixin config, SRG
+refmap and license checks in addition to the shared archive guard.

@@ -12,8 +12,8 @@
   refmap back to official names. Inspect both config and refmap after reobfuscation.
   ForgeGradle's createMcpToSrg emits output.tsrg (TSRG2); createMixinMappings converts it
   to traditional SRG with ForgeGradle's existing srgutils dependency for Mixin's processor.
-- The workspace sync script discovers only `mods/*`, not detached worktree paths. In addition
-  to `tools/sync-mod-files.ps1 -Check`, compare this worktree's six shared files to the template.
+- The workspace sync script accepts standalone worktrees: use
+  `tools/sync-mod-files.ps1 -Check -Mod <this-worktree>` for every synced CI/world/wrapper file.
 - DankRecipeTransfer currently has no CLAUDE.md; its build.gradle and the workspace CLAUDE.md
   supplied the scaffold conventions.
 - ForgeGradle registers run tasks late. Use `tasks.configureEach` for the proof dependency;

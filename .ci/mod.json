@@ -1,0 +1,7 @@
+{
+  "modId": "flatworldfix",
+  "mainPackage": "io.github.dirtyredz.flatworldfix",
+  "datagen": false,
+  "gametests": false,
+  "packSide": "both"
+}

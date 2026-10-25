@@ -137,3 +137,5 @@ generator-settings={"biome":"minecraft:plains","layers":[{"block":"minecraft:bed
     // ForgeGradle creates its run tasks after project evaluation.
     tasks.configureEach { if (name == 'runServer') dependsOn 'prepareProof' }
 }
+
+apply from: 'gradle/verify-release-jar.gradle'

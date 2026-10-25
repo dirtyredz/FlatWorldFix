@@ -1,6 +1,10 @@
 # Verification
 
-Fast gate: `./gradlew --offline test build`.
+Fast gate: `./gradlew --offline test build verifyReleaseJar`, then `./tools/verify-jar.ps1`.
+The shared guard stages the exact release jar and `build/ci/release.json`; the manual check
+retains the mod-specific mixin/refmap/license assertions. Hosted CI runs the shared guard;
+there is no custom-check hook in `.ci/mod.json`. Dedicated-server proofs below are not Forge
+GameTests, so `.ci/mod.json` deliberately sets `gametests: false`.
 
 Named dedicated-server proof (one server at a time, BelowNormal, local dependencies only):
 

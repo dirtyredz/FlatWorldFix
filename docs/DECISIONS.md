@@ -1,5 +1,15 @@
 # Decisions
 
+## 2026-10-25 - Shared hosted CI and deliberate releases
+
+Adopt the workspace template as byte-identical standalone files. Pushes verify without publishing;
+owner-authorized release dispatch after green main CI verifies, builds, drafts, hashes readback
+and publishes immutable assets. Gradle resolves the exact release manifest beside the staged jar.
+
+Neither datagen nor Forge GameTests are configured. Dedicated-server proofs use runServer with
+a proof property and remain separate qualification. The shared jar guard supplements, rather
+than replaces, tools/verify-jar.ps1 (manual mixin/refmap/license checks).
+
 ## 2026-10-24 — Explicit creation opt-in, persisted with world generation settings
 
 `WorldDimensions.bake` prefers datapack entries. Terralith 2.5.4 supplies
