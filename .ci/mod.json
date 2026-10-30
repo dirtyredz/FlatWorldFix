@@ -1,23 +1,41 @@
 {
   "modId": "flatworldfix",
   "mainPackage": "io.github.dirtyredz.flatworldfix",
+  "profile": "neoforge-1.21.1",
+  "releaseBranch": "neoforge-1.21.1",
   "datagen": false,
   "gametests": false,
   "packSide": "both",
   "jar": {
     "requiredEntries": [
       "META-INF/LICENSE",
-      "META-INF/MANIFEST.MF",
-      "flatworldfix.mixins.json",
-      "flatworldfix.refmap.json"
+      "META-INF/neoforge.mods.toml",
+      "flatworldfix.mixins.json"
     ],
-    "manifestContains": [
-      "MixinConfigs: flatworldfix.mixins.json"
+    "forbiddenEntries": [
+      "META-INF/mods.toml",
+      "**/WorldCreationProof.class",
+      "**/MergeProof.class"
+    ],
+    "manifestExcludes": [
+      "MixinConfigs"
     ],
     "entryContains": [
       {
-        "entry": "flatworldfix.refmap.json",
-        "contains": "m_"
+        "entry": "META-INF/neoforge.mods.toml",
+        "contains": "modId=\"flatworldfix\""
+      },
+      {
+        "entry": "META-INF/neoforge.mods.toml",
+        "contains": "config=\"flatworldfix.mixins.json\""
+      },
+      {
+        "entry": "flatworldfix.mixins.json",
+        "contains": "\"compatibilityLevel\": \"JAVA_21\""
+      },
+      {
+        "entry": "META-INF/LICENSE",
+        "contains": "MIT License"
       }
     ]
   }

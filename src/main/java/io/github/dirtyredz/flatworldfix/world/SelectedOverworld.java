@@ -9,18 +9,16 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldDimensions;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.function.BiFunction;
 
 /** Creation intent belongs to a world, and survives saving without opting in pre-existing saves. */
 public final class SelectedOverworld {
     public static final String MARKER = "flatworldfix:keep_overworld";
 
-    // MappedRegistry uses object identity. Weak keys do not retain abandoned creation screens/worlds.
-    private static final Set<Registry<LevelStem>> SELECTED =
-            Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+    // WorldDimensions is a record in 1.21, so equals() compares its map. Identity is essential:
+    // two different worlds with equal settings must not share creation intent.
+    private static final IdentityWeakSet<WorldDimensions> SELECTED_DIMENSIONS = new IdentityWeakSet<>();
+    private static final IdentityWeakSet<Registry<LevelStem>> SELECTED_REGISTRIES = new IdentityWeakSet<>();
 
     private SelectedOverworld() {}
 
@@ -34,32 +32,41 @@ public final class SelectedOverworld {
     }
 
     private static WorldDimensions restore(WorldDimensions dimensions, boolean keep) {
-        if (keep) SELECTED.add(dimensions.dimensions());
-        else SELECTED.remove(dimensions.dimensions());
+        SELECTED_DIMENSIONS.set(dimensions, keep);
         return dimensions;
     }
 
-    public static void inherit(Registry<LevelStem> source, Registry<LevelStem> result) {
-        if (SELECTED.contains(source)) SELECTED.add(result);
+    public static void inherit(WorldDimensions source, WorldDimensions result) {
+        if (SELECTED_DIMENSIONS.contains(source)) SELECTED_DIMENSIONS.add(result);
+    }
+
+    public static void inherit(WorldDimensions source, Registry<LevelStem> result) {
+        if (SELECTED_DIMENSIONS.contains(source)) SELECTED_REGISTRIES.add(result);
+    }
+
+    /** Carries intent through the saving path's new WorldDimensions(bakedRegistry) copy. */
+    public static void inherit(Registry<LevelStem> source, WorldDimensions result) {
+        if (SELECTED_REGISTRIES.contains(source)) SELECTED_DIMENSIONS.add(result);
     }
 
     public static MapCodec<WorldDimensions> withMarker(MapCodec<WorldDimensions> original) {
         return RecordCodecBuilder.<WorldDimensions>mapCodec(instance -> instance.group(
                 original.forGetter(dimensions -> dimensions),
                 Codec.BOOL.optionalFieldOf(MARKER, false)
-                        .forGetter(dimensions -> SELECTED.contains(dimensions.dimensions()))
+                        .forGetter(SELECTED_DIMENSIONS::contains)
         ).apply(instance, instance.stable(
                 (BiFunction<WorldDimensions, Boolean, WorldDimensions>) SelectedOverworld::restore)));
     }
 
     public static Registry<LevelStem> datapackFor(WorldDimensions selected, Registry<LevelStem> datapack) {
-        if (!SELECTED.contains(selected.dimensions()) || !datapack.containsKey(LevelStem.OVERWORLD)) {
+        if (!SELECTED_DIMENSIONS.contains(selected) || !datapack.containsKey(LevelStem.OVERWORLD)) {
             return datapack;
         }
         var filtered = new MappedRegistry<LevelStem>(Registries.LEVEL_STEM, datapack.registryLifecycle());
         for (var entry : datapack.entrySet()) {
             if (!entry.getKey().equals(LevelStem.OVERWORLD)) {
-                filtered.register(entry.getKey(), entry.getValue(), datapack.lifecycle(entry.getValue()));
+                filtered.register(entry.getKey(), entry.getValue(),
+                        datapack.registrationInfo(entry.getKey()).orElseThrow());
             }
         }
         // Let vanilla bake supply the selected overworld and perform all ordering/stability checks.

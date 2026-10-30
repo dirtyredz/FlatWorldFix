@@ -4,6 +4,7 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.Lifecycle;
 import net.minecraft.core.MappedRegistry;
+import net.minecraft.core.RegistrationInfo;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.NbtOps;
@@ -20,6 +21,7 @@ import net.minecraft.world.level.levelgen.presets.WorldPresets;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 /** Small real-registry regression matrix, executed inside the named dedicated-server proof. */
@@ -33,7 +35,7 @@ final class MergeProof {
         try (var reader = server.getResourceManager().openAsReader(
                 ResourceLocation.fromNamespaceAndPath("minecraft", "dimension/overworld.json"))) {
             terralith = LevelStem.CODEC.parse(RegistryOps.create(JsonOps.INSTANCE, access),
-                    JsonParser.parseReader(reader)).getOrThrow(false, MergeProof::fail);
+                    JsonParser.parseReader(reader)).getOrThrow(AssertionError::new);
         }
         var input = new MappedRegistry<LevelStem>(Registries.LEVEL_STEM, Lifecycle.stable());
         var serverDimensions = access.registryOrThrow(Registries.LEVEL_STEM);
@@ -41,12 +43,14 @@ final class MergeProof {
             // Different objects expose accidental substitution of selected Nether/End entries.
             var stem = entry.getValue();
             input.register(entry.getKey(), entry.getKey().equals(LevelStem.OVERWORLD) ? terralith
-                    : new LevelStem(stem.type(), stem.generator()), Lifecycle.stable());
+                    : new LevelStem(stem.type(), stem.generator()),
+                    new RegistrationInfo(Optional.empty(), Lifecycle.stable()));
         }
         var noise = (net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator) terralith.generator();
         input.register(EXTRA, new LevelStem(terralith.type(),
                 new net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator(
-                        noise.getBiomeSource(), noise.generatorSettings())), Lifecycle.experimental());
+                        noise.getBiomeSource(), noise.generatorSettings())),
+                new RegistrationInfo(Optional.empty(), Lifecycle.experimental()));
         Registry<LevelStem> datapack = input.freeze();
         var ops = RegistryOps.create(NbtOps.INSTANCE, access);
 
@@ -74,10 +78,10 @@ final class MergeProof {
             require(datapack.get(LevelStem.OVERWORLD) == terralith, "input registry is not mutated");
             // This is how saving reconstructs WorldDimensions from the final registry.
             var saved = WorldGenSettings.encode(ops, new WorldOptions(0, false, false),
-                    baked.dimensionsRegistryAccess()).getOrThrow(false, MergeProof::fail);
+                    baked.dimensionsRegistryAccess()).getOrThrow(AssertionError::new);
             var tag = (net.minecraft.nbt.CompoundTag) saved;
             require(tag.getBoolean("flatworldfix:keep_overworld") == protect, type + " saved opt-in");
-            var loaded = WorldGenSettings.CODEC.parse(ops, saved).getOrThrow(false, MergeProof::fail);
+            var loaded = WorldGenSettings.CODEC.parse(ops, saved).getOrThrow(AssertionError::new);
             var reopened = loaded.dimensions().bake(datapack);
             require(protect ? reopened.dimensions().get(LevelStem.OVERWORLD)
                     == loaded.dimensions().dimensions().get(LevelStem.OVERWORLD)
@@ -91,9 +95,9 @@ final class MergeProof {
         require(unmarked.bake(datapack).dimensions().get(LevelStem.OVERWORLD) == terralith,
                 "unmarked existing flat world retains vanilla merge");
         var legacySaved = WorldGenSettings.encode(ops, new WorldOptions(0, false, false), unmarked)
-                .getOrThrow(false, MergeProof::fail);
+                .getOrThrow(AssertionError::new);
         ((net.minecraft.nbt.CompoundTag) legacySaved).remove("flatworldfix:keep_overworld");
-        var legacyLoaded = WorldGenSettings.CODEC.parse(ops, legacySaved).getOrThrow(false, MergeProof::fail);
+        var legacyLoaded = WorldGenSettings.CODEC.parse(ops, legacySaved).getOrThrow(AssertionError::new);
         require(legacyLoaded.dimensions().bake(datapack).dimensions().get(LevelStem.OVERWORLD) == terralith,
                 "pre-mod saved data without the optional marker retains vanilla merge");
         var empty = new MappedRegistry<LevelStem>(Registries.LEVEL_STEM, Lifecycle.stable()).freeze();

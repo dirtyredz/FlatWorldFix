@@ -1,0 +1,22 @@
+{
+  "repository": "dirtyredz/FlatWorldFix",
+  "line": "neoforge-1.21.1",
+  "branchStart": {
+    "commit": "f872a379b2a87ee9584fe9ed3f7206a7b954dc01",
+    "description": "Forge 1.20.1 main at the start of the NeoForge line (v1.0.0 lineage)"
+  },
+  "baseline": {
+    "tag": "v1.0.0",
+    "commit": "f872a379b2a87ee9584fe9ed3f7206a7b954dc01",
+    "description": "Forge 1.20.1 release installed in the Evil Eye pack"
+  },
+  "upstream": null,
+  "dependencies": [
+    {
+      "name": "NeoForge",
+      "coordinate": "net.neoforged:neoforge:21.1.265:universal",
+      "sha256": "c12cf1a6cb0aa7792b13174b06088a4f54d8bcc92f6a32fcb03310b456936847"
+    }
+  ],
+  "communityPatches": []
+}

@@ -1,19 +1,28 @@
 plugins {
+    id 'java-library'
     id 'eclipse'
     id 'idea'
-    id 'net.minecraftforge.gradle' version '6.0.54'
+    id 'net.neoforged.moddev' version '2.0.148'
 }
+
 version = mod_version
 group = mod_group_id
-base { archivesName = "${mod_id}-${minecraft_version}" }
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
+// Loader-qualified release name: <mod_id>-<minecraft>-neoforge-<mod_version>.jar
+base {
+    archivesName = "${mod_id}-${minecraft_version}-neoforge"
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// The named server proof lives separately and never reaches the release jar.
 sourceSets {
     gameTest {
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
     }
 }
+
 configurations {
     gameTestImplementation.extendsFrom implementation
     gameTestCompileOnly.extendsFrom compileOnly
@@ -21,97 +30,95 @@ configurations {
 }
 
 def proof = project.findProperty('proof')
-def control = project.hasProperty('control')
-minecraft {
-    mappings channel: mapping_channel, version: mapping_version
-    copyIdeResources = true
+def terralithJar = project.findProperty('terralithJar')
+
+neoForge {
+    version = neo_version
+    addModdingDependenciesTo(sourceSets.gameTest)
+    addModdingDependenciesTo(sourceSets.test)
+
     runs {
-        configureEach {
-            workingDirectory project.file(proof ? "run/${proof}" : 'run')
-            property 'forge.logging.console.level', 'info'
-            if (!control && file("src/main/resources/${mod_id}.mixins.json").exists()) {
-                arg "-mixin.config=${mod_id}.mixins.json"
-                property 'mixin.env.remapRefMap', 'true'
-                property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            }
-            mods {
-                "${mod_id}" {
-                    source sourceSets.main
-                    if (proof) source sourceSets.gameTest
-                }
-            }
-        }
         server {
-            args '--nogui'
+            server()
+            gameDirectory = project.file(proof ? "run/${proof}" : 'run')
+            programArgument '--nogui'
             if (proof) {
-                property "${mod_id}.proof", proof.toString()
-                property "${mod_id}.control", control.toString()
-                // Keep runtime HTTP (including authlib metadata refreshes) off the internet too.
-                property 'http.proxyHost', '127.0.0.1'
-                property 'http.proxyPort', '9'
-                property 'https.proxyHost', '127.0.0.1'
-                property 'https.proxyPort', '9'
+                systemProperty "${mod_id}.proof", proof.toString()
+                systemProperty "${mod_id}.matrix", (terralithJar != null).toString()
+                systemProperty 'http.proxyHost', '127.0.0.1'
+                systemProperty 'http.proxyPort', '9'
+                systemProperty 'https.proxyHost', '127.0.0.1'
+                systemProperty 'https.proxyPort', '9'
             }
         }
     }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.gameTest
+        }
+    }
 }
-repositories { mavenCentral() }
+
+repositories {
+    mavenCentral()
+}
+
 dependencies {
-    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-    annotationProcessor 'org.spongepowered:mixin:0.8.5'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
-test { useJUnitPlatform() }
 
-tasks.register('createMixinMappings') {
-    dependsOn 'createMcpToSrg'
-    inputs.file layout.buildDirectory.file('createMcpToSrg/output.tsrg')
-    outputs.file layout.buildDirectory.file('mixin/mcp-to-srg.srg')
-    doLast {
-        def output = file('build/mixin/mcp-to-srg.srg')
-        output.parentFile.mkdirs()
-        net.minecraftforge.srgutils.IMappingFile.load(file('build/createMcpToSrg/output.tsrg'))
-                .write(output.toPath(), net.minecraftforge.srgutils.IMappingFile.Format.SRG, false)
+test {
+    useJUnitPlatform()
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    def replacements = [
+            minecraft_version      : minecraft_version, minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version, neo_version_range: neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id, mod_name: mod_name, mod_license: mod_license,
+            mod_version            : mod_version, mod_authors: mod_authors, mod_description: mod_description,
+    ]
+    inputs.properties replacements
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+        expand replacements + [project: project]
     }
 }
-tasks.named('compileJava', JavaCompile).configure {
-    dependsOn 'createMixinMappings'
-    // The locally cached Mixin jar is unshaded; its processor uses Forge's ASM/Guava/Gson.
-    options.annotationProcessorPath = configurations.annotationProcessor + sourceSets.main.compileClasspath
-    options.compilerArgs += [
-        "-AreobfSrgFile=${projectDir}/build/mixin/mcp-to-srg.srg",
-        "-AoutRefMapFile=${projectDir}/build/classes/java/main/${mod_id}.refmap.json"
-    ]
-}
-tasks.named('processResources', ProcessResources).configure {
-    def replacements = [minecraft_version_range: minecraft_version_range,
-        forge_version_range: forge_version_range, loader_version_range: loader_version_range,
-        mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
-        mod_authors: mod_authors, mod_description: mod_description]
-    inputs.properties replacements
-    filesMatching(['META-INF/mods.toml']) { expand replacements }
-}
+
 tasks.named('jar', Jar).configure {
     from('LICENSE') { into 'META-INF' }
-    manifest { attributes('MixinConfigs': "${mod_id}.mixins.json",
-        'Implementation-Version': project.version) }
-    finalizedBy 'reobfJar'
+    // Mixins are declared in neoforge.mods.toml ([[mixins]]), not the manifest.
+    manifest {
+        attributes([
+                'Specification-Title'      : mod_id,
+                'Specification-Vendor'     : mod_authors,
+                'Specification-Version'    : '1',
+                'Implementation-Title'     : project.name,
+                'Implementation-Version'   : project.jar.archiveVersion,
+                'Implementation-Vendor'    : mod_authors,
+        ])
+    }
 }
-tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 
-// Named, bounded dedicated-server proof. Local jars only; never part of the release artifact.
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Named, bounded dedicated-server proof. The local Terralith jar is never part of the release artifact.
 if (proof) {
     tasks.register('prepareProof') {
         doLast {
             if (!(proof.toString() ==~ /[a-z][a-z0-9-]*/)) throw new GradleException('Invalid proof name')
             def dir = file("run/${proof}")
             dir.mkdirs()
-            def terralith = file(project.property('terralithJar'))
-            if (!terralith.isFile()) throw new GradleException("Missing local Terralith jar: ${terralith}")
-            copy { from terralith; into new File(dir, 'mods') }
-            new File(dir, 'config').mkdirs()
-            new File(dir, 'config/fml.toml').text = 'versionCheck=false\n'
+            if (terralithJar != null) {
+                def terralith = file(terralithJar)
+                if (!terralith.isFile()) throw new GradleException("Missing local Terralith jar: ${terralith}")
+                copy { from terralith; into new File(dir, 'mods') }
+            }
             new File(dir, 'eula.txt').text = 'eula=true\n'
             def type = project.findProperty('worldType') ?: 'flat'
             new File(dir, 'server.properties').text = """level-name=world
@@ -134,8 +141,7 @@ generator-settings={"biome":"minecraft:plains","layers":[{"block":"minecraft:bed
 """
         }
     }
-    // ForgeGradle creates its run tasks after project evaluation.
-    tasks.configureEach { if (name == 'runServer') dependsOn 'prepareProof' }
+    tasks.named('runServer').configure { dependsOn 'prepareProof' }
 }
 
 apply from: 'gradle/verify-release-jar.gradle'

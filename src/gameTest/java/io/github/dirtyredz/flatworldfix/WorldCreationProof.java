@@ -1,11 +1,11 @@
 package io.github.dirtyredz.flatworldfix;
 
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 /** Runs only in the named dedicated-server proof, never in the release jar. */
-@Mod.EventBusSubscriber(modid = FlatWorldFix.MOD_ID)
+@EventBusSubscriber(modid = FlatWorldFix.MOD_ID)
 public final class WorldCreationProof {
     @SubscribeEvent
     public static void started(ServerStartedEvent event) {
@@ -13,7 +13,7 @@ public final class WorldCreationProof {
         try {
             System.out.println("FLATWORLDFIX_PROOF generator="
                     + event.getServer().overworld().getChunkSource().getGenerator().getClass().getName());
-            if (!Boolean.getBoolean("flatworldfix.control")) {
+            if (Boolean.getBoolean("flatworldfix.matrix")) {
                 MergeProof.run(event.getServer());
             }
             java.nio.file.Files.writeString(java.nio.file.Path.of("proof-result.txt"), "PASS\n");

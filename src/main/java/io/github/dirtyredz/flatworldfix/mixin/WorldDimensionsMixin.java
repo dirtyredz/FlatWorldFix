@@ -14,12 +14,18 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.function.Function;
 
 @Mixin(WorldDimensions.class)
 abstract class WorldDimensionsMixin {
+    @Inject(method = "<init>(Lnet/minecraft/core/Registry;)V", at = @At("RETURN"))
+    private void flatworldfix$rememberBakedRegistry(Registry<LevelStem> dimensions, CallbackInfo callback) {
+        SelectedOverworld.inherit(dimensions, (WorldDimensions) (Object) this);
+    }
+
     @Redirect(method = "<clinit>", at = @At(value = "INVOKE", remap = false,
             target = "Lcom/mojang/serialization/codecs/RecordCodecBuilder;mapCodec(Ljava/util/function/Function;)Lcom/mojang/serialization/MapCodec;"))
     private static MapCodec<WorldDimensions> flatworldfix$persistIntent(
@@ -36,14 +42,14 @@ abstract class WorldDimensionsMixin {
     @Inject(method = "bake", at = @At("RETURN"))
     private void flatworldfix$rememberBakedRegistry(Registry<LevelStem> datapack,
             CallbackInfoReturnable<WorldDimensions.Complete> callback) {
-        SelectedOverworld.inherit(((WorldDimensions) (Object) this).dimensions(),
+        SelectedOverworld.inherit((WorldDimensions) (Object) this,
                 callback.getReturnValue().dimensions());
     }
 
     @Inject(method = "replaceOverworldGenerator", at = @At("RETURN"))
     private void flatworldfix$keepIntentAfterCustomization(RegistryAccess access, ChunkGenerator generator,
             CallbackInfoReturnable<WorldDimensions> callback) {
-        SelectedOverworld.inherit(((WorldDimensions) (Object) this).dimensions(),
-                callback.getReturnValue().dimensions());
+        SelectedOverworld.inherit((WorldDimensions) (Object) this,
+                callback.getReturnValue());
     }
 }

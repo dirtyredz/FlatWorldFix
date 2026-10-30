@@ -1,1 +1,6 @@
-{"pack":{"pack_format":15,"description":"Flat World Fix resources"}}
+{
+  "pack": {
+    "description": "${mod_name} resources",
+    "pack_format": 34
+  }
+}
