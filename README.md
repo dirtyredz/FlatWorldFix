@@ -1,6 +1,6 @@
 # Flat World Fix
 
-A small MIT-licensed Forge 1.20.1 mod. Explicitly selected non-default world types
+A small MIT-licensed NeoForge 1.21.1 mod. Explicitly selected non-default world types
 keep their overworld when a datapack such as Terralith supplies its own overworld dimension.
 Default worlds continue using datapack terrain. No configuration or additional mods required.
 
@@ -13,17 +13,18 @@ so reopening them keeps the selected overworld. Keep this mod installed for thos
 removing it restores vanilla's datapack precedence. Datapacks can still change referenced
 biomes and noise settings; this mod controls dimension selection, not all world generation.
 
-Build: `./gradlew --offline test build` with cached Forge 47.4.10, Gradle 8.13, Java 17.
+Build: `./gradlew test build verifyReleaseJar` with NeoForge 21.1.265, ModDevGradle 2.0.148,
+Gradle 8.13 and Java 21.
 Release output: `build/libs/`; the version comes from `gradle.properties`.
 See [verification](docs/VERIFY.md), [design](docs/DECISIONS.md), and [layout](STRUCTURE.md).
 
 ## Release
 
 The version lives only in `gradle.properties`. Prepare non-empty `docs/releases/<version>.md`
-for a release, then obtain the owner's go-ahead to push and land on main. Push CI runs
+for a release, then obtain the owner's go-ahead to push the `neoforge-1.21.1` line. Push CI runs
 `./gradlew test build verifyReleaseJar`; it publishes nothing.
-After green main CI and owner authorization, the agent dispatches
-`gh workflow run release.yml --ref main`. The workflow verifies again, builds
+After green branch CI and owner authorization, the orchestrator dispatches
+`gh workflow run release.yml --ref neoforge-1.21.1`. The workflow verifies again, builds
 the final jar, creates its version tag, uploads a draft, reads every asset back and compares
 SHA-256 before publishing the jar, its `.sha256` and `flatworldfix.pw.toml`.
 The pack session consumes the published `.pw.toml`; the owner never publishes by hand.
@@ -31,11 +32,12 @@ Versions starting with `0.` or containing `-` are prereleases. Existing releases
 refused, published bytes are never replaced, and stable latest never moves backward.
 A failed draft requires deliberate recovery before retrying.
 
-Local fast gate: `./gradlew --offline test build verifyReleaseJar` with cached dependencies.
+Local fast gate: `./gradlew test build verifyReleaseJar`.
 Shared files are checked from the workspace with `tools/sync-mod-files.ps1 -Check -Mod <this-worktree>`.
 
 CI sets `datagen: false` (no generator) and `gametests: false`: the `src/gameTest` source set
-contains dedicated-server proofs launched by `runServer -Pproof=...`, not a Forge GameTest suite.
-The release job therefore skips Forge GameTests. These proofs stay separate; see
+contains dedicated-server proofs launched by `runServer -Pproof=...`, not a NeoForge GameTest suite.
+The release job therefore skips GameTests. These proofs stay separate; see
 [verification](docs/VERIFY.md). The shared `verifyReleaseJar` guard also enforces the
-mixin config, manifest activation, SRG refmap and license checks declared in `.ci/mod.json`.
+NeoForge metadata/mixin activation, Java 21 config, license and absence of test classes declared in
+`.ci/mod.json`.

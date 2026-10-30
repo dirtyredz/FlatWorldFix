@@ -1,89 +1,54 @@
 # Verification
 
-Fast gate: `./gradlew --offline test build verifyReleaseJar` with cached dependencies.
-The shared guard stages the exact release jar and `build/ci/release.json`, and enforces the
-required entries, manifest mixin activation and production SRG refmap declared in `.ci/mod.json`.
-Hosted CI runs the same checks. Dedicated-server proofs below are not Forge
-GameTests, so `.ci/mod.json` deliberately sets `gametests: false`.
+Fast gate: `./gradlew test build verifyReleaseJar`. The shared profile resolver selects
+`neoforge-1.21.1`; the guard stages the exact qualified release jar and `build/ci/release.json`,
+checks `META-INF/neoforge.mods.toml`, metadata mixin activation, Java 21 compatibility, the MIT
+license and the absence of proof classes. This project has no NeoForge GameTests, so
+`.ci/mod.json` deliberately sets `gametests: false`.
 
-Named dedicated-server proof (one server at a time, BelowNormal, local dependencies only):
-
-`./tools/run-proof.ps1 -Name control-flat -Control` performs the process check, waits up to
-45 minutes for the machine slot, runs the following command at BelowNormal priority in the
-foreground, and checks the test receipt. Other cases use `-Name fixed-flat` or
-`-Name fixed-default -WorldType default`. It does not delete worlds or install into instances.
+Named dedicated-server smoke proof (one server at a time, BelowNormal):
 
 ```powershell
-./gradlew --offline runServer -Pproof=control-flat -Pcontrol "-PterralithJar=C:/Users/dirty/MultiMC/instances/Roundwood Test/.minecraft/mods/Terralith_1.20.x_v2.5.4.jar"
+./tools/run-proof.ps1 -Name fixed-flat-1211
+node tools/verify-world.mjs run/fixed-flat-1211/world/level.dat flat
 ```
 
-This uses an isolated run/control-flat directory, with level-type=flat and a test-only
-ServerStartedEvent subscriber that requests normal shutdown and saving. Read level.dat after exit.
-Use distinct proof names for fresh cases; reuse a name only to test reopening its saved world.
-The control omits mixin activation. Terralith is staged from the local instance without modifying it.
-No test classes or Terralith dependencies enter the release jar.
+The proof launcher waits up to 45 minutes for the machine's Java slot, creates an isolated run
+directory, blocks runtime HTTP through a disconnected local proxy, starts `runServer` in the
+foreground, and requires its receipt. Use a fresh name for initial creation; the launcher does not
+delete a saved world. The subscriber records the generator and requests normal shutdown/saving.
+The external NBT assertion requires the flat generator, exact configured layers, the
+`flatworldfix:keep_overworld` marker and the Nether/End entries.
 
-Use `-Pproof=fixed-flat` without `-Pcontrol` for the fix. Use
-`-Pproof=fixed-default -PworldType=default` for the normal-world compatibility case.
-Repeat fixed-flat to test reopening; repeat control-flat without `-Pcontrol` to test an existing save.
-For each run require `run/<name>/proof-result.txt` to say PASS, normal server shutdown in the log,
-and a successful external NBT assertion:
+The real-registry Terralith matrix remains available when a NeoForge 1.21.1-compatible local jar is
+supplied read-only:
 
 ```powershell
-node tools/verify-world.mjs run/fixed-flat/world/level.dat flat
-node tools/verify-world.mjs run/control-flat/world/level.dat noise build/inspection/terralith-overworld.json
-node tools/verify-world.mjs run/fixed-default/world/level.dat noise build/inspection/terralith-overworld.json
-./gradlew --offline verifyReleaseJar
-node tools/compare-worldgen.mjs build/inspection/control-flat-original.dat run/control-flat/world/level.dat
+./tools/run-proof.ps1 -Name fixed-flat-terralith-1211 -TerralithJar C:/path/to/Terralith-1.21.x.jar
+node tools/verify-world.mjs run/fixed-flat-terralith-1211/world/level.dat flat
 ```
 
-Extract `data/minecraft/dimension/overworld.json` read-only from the supplied Terralith jar
-to `build/inspection/terralith-overworld.json`. The noise assertion checks the generator,
-settings key, and all 1,705 biome IDs in order, not merely the presence of noise terrain.
-The fixed server additionally runs the real-registry matrix in MergeProof before stopping.
-The test run directory must be fresh for initial creation (no automatic deletion).
-Copy the control's original level.dat and log into build/inspection before reopening it with
-the fix. Likewise retain the first fixed-flat level.dat and compare after reopening with
-`-WorldType default`; existing worlds must ignore a subsequently changed server world type.
+Supplying the jar enables `MergeProof`: flat, single biome, debug, amplified, large biomes, normal,
+default and unknown preset/fallback cases; customized flat layers; marker serialization; legacy
+data without the marker; absent overrides; input immutability; and preservation of non-overworld
+dimensions. Never use the locally installed Terralith 2.5.4 jar for this line: its metadata range is
+`[1.20,1.21)`, so it is not a valid 1.21.1 proof input.
 
-Terralith 2.5.4 input SHA-256:
-`8F65F309D8F2723754BF4B60C7B5763D3AB6ED04B01C172109BA6564E981B95F`.
-Its metadata requires no TerraBlender; only Terralith is staged.
+## Observed results, 2026-10-29
 
-## Observed results, 2026-10-24
+`./gradlew test build verifyReleaseJar`: **BUILD SUCCESSFUL in 53s**; four unit tests passed.
+The guard verified `flatworldfix-1.21.1-neoforge-1.0.0.jar`, profile `neoforge-1.21.1`, six
+compiled main classes and no proof/test classes. Direct archive inspection confirmed mod id
+`flatworldfix`, NeoForge `[21.1.265,21.2)`, Minecraft `[1.21.1,1.21.2)`, and the metadata-owned
+mixin config. SHA-256: `90A6DA8856F1A633ED3D2354B1B1624265DE3684740F37C5D50923E4A853B996`.
 
-Fresh control: `minecraft:noise`, no marker, all 1,705 ordered Terralith biome IDs matched.
-Fresh fixed flat: `minecraft:flat`, 1 bedrock + 2 dirt + 1 grass, marker true.
-Fresh fixed default: `minecraft:noise`, no marker, all 1,705 ordered Terralith biome IDs matched.
-Reopening fixed-flat with `-WorldType default` stayed flat, with identical WorldGenSettings.
-Reopening the unmarked control with the fix installed stayed Terralith noise, also with identical
-WorldGenSettings. Both comparisons used tools/compare-worldgen.mjs against the retained originals.
-The fixed runs passed all eight preset/fallback cases in MergeProof, including customized flat
-layers, serialization, missing-marker legacy data, absent overrides, and non-overworld dimensions.
+`./tools/run-proof.ps1 -Name fixed-flat-1211`: **BUILD SUCCESSFUL in 8m 49s**. NeoForge 21.1.265
+loaded FlatWorldFix 1.0.0, the mixin subsystem selected JAVA_21, the server reported
+`FlatLevelSource`, saved all three dimensions and stopped normally. `proof-result.txt` was `PASS`.
 
-The negative control failed as required: `AssertionError [ERR_ASSERTION]: saved overworld generator`,
-with actual `'minecraft:noise'` and expected `'minecraft:flat'`. Originals and logs are retained
-under build/inspection; servers saved and stopped normally.
+`node tools/verify-world.mjs run/fixed-flat-1211/world/level.dat flat`: **PASS**; generator
+`minecraft:flat`, marker true, and overworld/Nether/End present. This was the one permitted server
+boot. The Terralith matrix was not run because no compatible 1.21.1 jar is locally available.
 
-Two setup failures were corrected before the passing runs:
-`Task with name 'runServer' not found in root project 'FlatWorldFix'.` and
-`No valid input files for searge could be read, processing may not be sucessful.`
-See [GOTCHAS.md](GOTCHAS.md) for late task registration and TSRG2-to-SRG conversion.
-The first control also fetched Forge version metadata despite Gradle offline mode; later runs
-disable that check, and the proof launcher now blocks runtime HTTP via a disconnected local proxy.
-No dependency download or installation was performed. Client UI checks are not run (headless only).
-
-One fast-gate attempt was stopped before task execution because another checkout started a
-server after the process check. The interrupted log is build/inspection/fast-gate-interrupted.log.
-
-Final `./gradlew --offline test build`: **BUILD SUCCESSFUL in 4m 1s**; two unit tests,
-zero failures/errors/skips; reobfJar completed. No full suite was run.
-The former `./tools/verify-jar.ps1` (now replaced by `verifyReleaseJar`) passed: expanded mods.toml, manifest activation, side-specific mixins,
-production SRG refmap, MIT license, and no test classes/dependencies. The archive contains
-exactly five production classes. A javap inspection also confirmed reobfuscated Minecraft
-references in the packaged classes (build/inspection/release-bytecode.txt).
-Release SHA-256: `9234B6621007AC2D369186E8294341C7242AFCAB9E1E58FDE27E075756F1D581`.
-Workspace `tools/sync-mod-files.ps1 -Check`, a separate six-file template hash comparison,
-`git diff --check`, and root `dk check` passed (zero Docket errors/warnings).
-The root item was left unchanged for the orchestrator. All proof servers and build processes
-started here have exited; no instance or pack was modified.
+Client UI checks are not run (headless only). The owner verifies singleplayer creation in game.
+Workspace `sync-mod-files.ps1 -Check`, `dk check`, and `git diff --check` passed.

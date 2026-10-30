@@ -1,6 +1,6 @@
 # Architecture
 
-FlatWorldFix is a mixin-only Forge 1.20.1 mod with no blocks, items or config.
+FlatWorldFix is a mixin-only NeoForge 1.21.1 mod with no blocks, items or config.
 
 ## The problem it changes
 
@@ -18,6 +18,11 @@ same merge runs again every time a save is opened.
    without the marker, including every save made before the mod was installed, gets vanilla
    behaviour.
 3. The Nether, the End and any other datapack dimensions are never touched.
+
+Minecraft 1.21 stores a map inside `WorldDimensions` instead of retaining its input registry. The
+opt-in therefore follows the `WorldDimensions` object by weak identity, follows the baked registry,
+and is restored onto the saving path's `new WorldDimensions(registry)` copy. Identity comparison is
+deliberate: two different worlds with structurally equal settings must not share intent.
 
 The design choices and rejected alternatives are in [DECISIONS.md](DECISIONS.md); the proof runs
 are in [VERIFY.md](VERIFY.md).

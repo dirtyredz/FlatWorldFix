@@ -1,12 +1,30 @@
 # Decisions
 
+## 2026-10-29 - NeoForge 1.21.1 qualified line
+
+Port the v1.0.0 behaviour to a loader-qualified `neoforge-1.21.1` branch with NeoForge 21.1.265,
+ModDevGradle 2.0.148 and Java 21. Keep the mod id, persisted marker and all selection semantics.
+Use the shared qualified release identity, producing
+`flatworldfix-1.21.1-neoforge-1.0.0.jar` without moving the Forge tag.
+
+Minecraft 1.21 changed `WorldDimensions` from a registry-backed record to a map-backed record.
+Track marked `WorldDimensions` and baked registries in separate weak identity sets, and inject the
+registry constructor to carry intent into the object created for serialization. Equality-based weak
+maps were rejected because separately created worlds can have equal dimension maps. NeoForge uses
+official names, so metadata owns mixin activation and no SRG refmap is generated or packaged.
+
+The server caller remains `DedicatedServerProperties.WorldDimensionData.create`, the client caller
+remains `CreateWorldScreen.onCreate`, and the bake/customization hooks retain their 1.20.1 scope.
+The headless flat creation/save smoke proves the server hook and persisted marker on 1.21.1; the
+Terralith matrix remains available for a compatible 1.21 jar.
+
 ## 2026-10-25 - Shared hosted CI and deliberate releases
 
 Adopt the workspace template as byte-identical standalone files. Pushes verify without publishing;
 owner-authorized release dispatch after green main CI verifies, builds, drafts, hashes readback
 and publishes immutable assets. Gradle resolves the exact release manifest beside the staged jar.
 
-Neither datagen nor Forge GameTests are configured. Dedicated-server proofs use runServer with
+Neither datagen nor GameTests are configured. Dedicated-server proofs use runServer with
 a proof property and remain separate qualification. The shared jar guard enforces the mixin/refmap/license checks declared in `.ci/mod.json`,
 replacing the duplicated manual `tools/verify-jar.ps1` check.
 
