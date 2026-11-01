@@ -21,10 +21,10 @@ See [verification](docs/VERIFY.md), [design](docs/DECISIONS.md), and [layout](ST
 ## Release
 
 The version lives only in `gradle.properties`. Prepare non-empty `docs/releases/<version>.md`
-for a release, then obtain the owner's go-ahead to push the `neoforge-1.21.1` line. Push CI runs
+for a release, then obtain the owner's go-ahead to push `main` (the NeoForge line; Forge is frozen on `forge-1.20.1`). Push CI runs
 `./gradlew test build verifyReleaseJar`; it publishes nothing.
 After green branch CI and owner authorization, the orchestrator dispatches
-`gh workflow run release.yml --ref neoforge-1.21.1`. The workflow verifies again, builds
+`gh workflow run release.yml --ref main`. The workflow verifies again, builds
 the final jar, creates its version tag, uploads a draft, reads every asset back and compares
 SHA-256 before publishing the jar, its `.sha256` and `flatworldfix.pw.toml`.
 The pack session consumes the published `.pw.toml`; the owner never publishes by hand.
